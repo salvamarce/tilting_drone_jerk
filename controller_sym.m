@@ -2,6 +2,8 @@
 clear
 
 addpath('casadi_matlab')
+import casadi.*
+
 addpath('cpp_files')
 addpath('util')
 
@@ -89,7 +91,7 @@ ctrl_out = pinv_A_jerk*([jerk_des; w_ddot_des] - 0*[b_vec; zeros(3,1)]);% + (eye
 wr_dot = ctrl_out(1:N_rotors);
 w_tilt = ctrl_out(N_rotors+1:end);
 
-CTRL = Function('CTRL',{states,wr,K_lin,K_att,lin_ref,att_ref},{wr_dot, w_tilt,jerk_des,w_ddot_des,A_jerk}, ...
+CTRL = Function('CTRL',{states,wr,K_lin,K_att,lin_ref,att_ref},{wr_dot, w_tilt,jerk_des,w_ddot_des,pinv_A_jerk}, ...
                          {'x0', 'wr', 'K_lin', 'K_att', 'lin_ref', 'att_ref'}, {'wr_dot', 'w_tilt','jd','wd','a_inv'});
 
 %% C++ code generation

@@ -1,6 +1,4 @@
-addpath('casadi_matlab')
-addpath('cpp_files')
-addpath('util')
+%% Declaration of system's parameters
 
 N_rotors = 4;
 angle_span = deg2rad(90);

@@ -3,10 +3,10 @@ close all
 clc
 
 addpath('casadi_matlab')
+import casadi.*
+
 addpath('cpp_files')
 addpath('util')
-% addpath('../')
-import casadi.*
 
 plot_state = true;
 plot_animation = false;

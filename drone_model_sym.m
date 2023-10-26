@@ -2,6 +2,8 @@
 clear
 
 addpath('casadi_matlab')
+import casadi.*
+
 addpath('cpp_files')
 addpath('util')
 

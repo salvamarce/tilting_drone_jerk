@@ -15,9 +15,9 @@ for i=2:N
     [wr_dot_des, w_tilt_des, jd,wd,A_inv] = controller('CTRL',x0,wr_evo(:,i-1),K_lin,K_att,ref_traj(1:12,i),ref_traj(13:end,i));
     % wr_dot_des
     % w_tilt_des = w_tilt_des *0.0174533;
-    % jd
-    % wd
-    % A_inv
+    jd
+    wd
+    A_inv
     % A_inv*[jd;wd]
 
     % for rotor_i = 1:N_rotors
