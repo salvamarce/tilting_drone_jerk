@@ -291,7 +291,7 @@ if(plot_state)
     end
     hold off
     ylabel('w dot r [rad/s^2]')
-    axis([0 dt*8 min(min(ctrl_evo(1:N_rotors,:)))-5 max(max(ctrl_evo(1:N_rotors,:)))+5])
+    axis([0 Tf min(min(ctrl_evo(1:N_rotors,:)))-5 max(max(ctrl_evo(1:N_rotors,:)))+5])
     legend show
     grid on
 
@@ -302,7 +302,8 @@ if(plot_state)
     end
     hold off
     ylabel('dot \alpha [rad/s]')
-    axis([0 dt*8 min(min(ctrl_evo(N_rotors+1:2*N_rotors,:)))-5 max(max(ctrl_evo(N_rotors+1:2*N_rotors,:)))+5])
+    % axis([0 Tf min(min(ctrl_evo(N_rotors+1:2*N_rotors,:)))-5 max(max(ctrl_evo(N_rotors+1:2*N_rotors,:)))+5])
+    axis([0 Tf -10 10])
     legend show
     grid on
 

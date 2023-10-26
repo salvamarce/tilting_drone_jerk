@@ -1,7 +1,7 @@
 drone_settings
 
 % Control gains
-K_lin_pos = 10*[1.0; 1.0; 1.0];
+K_lin_pos = 1*[1.0; 1.0; 1.0];
 K_lin_vel = 0*[1.0; 1.0; 1.0];
 K_lin_acc = 0*[1.0; 1.0; 1.0];
 K_lin = [K_lin_pos; K_lin_vel; K_lin_acc];
