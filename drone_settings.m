@@ -1,6 +1,6 @@
-addpath('../casadi_matlab')
-import casadi.*
-addpath('../util')
+addpath('casadi_matlab')
+addpath('cpp_files')
+addpath('util')
 
 N_rotors = 4;
 angle_span = deg2rad(90);

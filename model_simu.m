@@ -2,9 +2,9 @@ clearvars
 close all
 clc
 
-addpath('../casadi_matlab')
+addpath('casadi_matlab')
 addpath('cpp_files')
-addpath('../util')
+addpath('util')
 % addpath('../')
 import casadi.*
 

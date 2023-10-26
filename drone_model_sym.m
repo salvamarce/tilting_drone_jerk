@@ -1,9 +1,9 @@
 %% Symbolic model of a tilting drone to the jerk
 clear
 
-addpath('../casadi_matlab')
-import casadi.*
-addpath('../util')
+addpath('casadi_matlab')
+addpath('cpp_files')
+addpath('util')
 
 drone_settings
 
