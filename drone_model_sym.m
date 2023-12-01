@@ -1,5 +1,4 @@
 %% Symbolic model of a tilting drone to the jerk
-clear
 
 addpath('casadi_matlab')
 import casadi.*
@@ -20,12 +19,14 @@ wB_dot = states(16:18);
 tilt = states(19:19+N_rotors-1);
 
 % Parameters
-mass = param(1);
-Kf = param(2);
-Km = param(3);
-I_diag = param(4:6);
-arm = param(7);
-rotor_angles = param(8:8+N_rotors-1);
+params = SX.sym('param',N_params);
+mass = params(1);
+Kf = params(2);
+Km = params(3);
+I_diag = params(4:6);
+arm = params(7);
+rotor_angles = params(8:8+N_rotors-1);
+K_tilt = params(end);
 
 %% System equations
 wr = SX.sym('wr',N_rotors,1);
@@ -52,24 +53,20 @@ R_bw_dot = R_bw * skewMat(wB);
 
 b_vec = (1/mass)*R_bw_dot*A(1:3,:)*wr;
 
-out = A_jerk * [wr_dot;w_tilt] + [b_vec; zeros(3,1)];
-% 
-% Tmat = [1, 0, sin(eul(2));
-%         0, cos(eul(1)), -(sin(eul(1))*cos(eul(1)));
-%         0, -sin(eul(1)), cos(eul(1))*cos(eul(1))];
-% % 
 Tmat = [1, 0, sin(eul(2))*cos(eul(1));
         0, cos(eul(1)), -sin(eul(1));
         0, -sin(eul(1)), cos(eul(2))*cos(eul(1))];
 
+out = A_jerk * [wr_dot;w_tilt] + [b_vec; zeros(3,1)];
 eul_dot = Tmat\wB;
 
+tilt_dot = K_tilt * w_tilt;
 
 pos_dot = vel;
 vel_wB_dot = [0;0;-gravity;zeros(3,1)] + Jr*[A, zeros(6,N_rotors)]*[wr;w_tilt];
 
-X_DOT = Function('X_DOT',{states,wr,wr_dot,w_tilt},{pos_dot,vel_wB_dot(1:3),out(1:3),eul_dot,vel_wB_dot(4:6),out(4:6),Jr,Ja}, ...
-                         {'x0', 'wr', 'wr_dot', 'w_tilt'}, {'pos_dot','vel_dot','acc_dot','eul_dot','wB_dot','wB_ddot','Jr','Ja'});
+X_DOT = Function('X_DOT',{states,wr,wr_dot,w_tilt,params},{pos_dot,vel_wB_dot(1:3),out(1:3),eul_dot,vel_wB_dot(4:6),out(4:6),tilt_dot}, ...
+                         {'x0', 'wr', 'wr_dot', 'w_tilt', 'params'}, {'pos_dot','vel_dot','acc_dot','eul_dot','wB_dot','wB_ddot','tilt_dot'});
 
 %% C++ code generation
 gen_opts = struct('main', true, ...

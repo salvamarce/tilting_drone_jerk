@@ -1,5 +1,4 @@
 %% Symbolic controller for tilting quadrotor to the jerk
-clear
 
 addpath('casadi_matlab')
 import casadi.*
@@ -20,15 +19,18 @@ wB_dot = states(16:18);
 tilt = states(19:19+N_rotors-1);
 
 % Parameters
-mass = param(1);
-Kf = param(2);
-Km = param(3);
-I_diag = param(4:6);
-arm = param(7);
-rotor_angles = param(8:8+N_rotors-1);
+params = SX.sym('param',N_params);
+mass = params(1);
+Kf = params(2);
+Km = params(3);
+I_diag = params(4:6);
+arm = params(7);
+rotor_angles = params(8:8+N_rotors-1);
+K_tilt = params(end);
 
 %% Nominal allocation
-wr = SX.sym('wr',N_rotors,1);
+wr0 = SX.sym('wr0',N_rotors,1);
+dt = SX.sym('dt');
 
 R_bw = Rx(eul(1))*Ry(eul(2))*Rz(eul(3));
 I_mat = diag(I_diag);
@@ -36,9 +38,9 @@ I_mat = diag(I_diag);
 Jr = [(1/mass) * R_bw, zeros(3,3); zeros(3,3), inv(I_mat)];
 A = compute_A_SX(rotor_angles,tilt, arm, Kf, Km);
 
-sum_a_diff = jacobian(A(:,1),tilt)*wr(1);
+sum_a_diff = jacobian(A(:,1),tilt)*wr0(1);
 for i_A = 2:N_rotors
-    sum_a_diff = sum_a_diff + jacobian(A(:,i_A),tilt)*wr(i_A);
+    sum_a_diff = sum_a_diff + jacobian(A(:,i_A),tilt)*wr0(i_A);
 end
 
 Ja = [A, sum_a_diff];
@@ -47,7 +49,7 @@ A_jerk = Jr*Ja;
 
 R_bw_dot = R_bw * skewMat(wB);
 
-b_vec = (1/mass)*R_bw_dot*A(1:3,:)*wr;
+b_vec = (1/mass)*R_bw_dot*A(1:3,:)*wr0;
 
 %% Control equations
 lin_ref = SX.sym('pos_ref',12,1);
@@ -72,7 +74,6 @@ Kw1 = K_att(1:3);
 Kw2 = K_att(4:6);
 Kw3 = K_att(7:9);
 
-R_bw = Rx(eul(1))*Ry(eul(2))*Rz(eul(3));
 Rd = Rx(eul_ref(1))*Ry(eul_ref(2))*Rz(eul_ref(3));
 eR = vmap(Rd,R_bw);
 % eR = eul_ref - eul;
@@ -85,14 +86,16 @@ w_ddot_des = w_ddot_ff + diag(Kw3)*(w_dot_ref - wB_dot) + diag(Kw2)*(w_ref - wB)
 
 z = zeros(2*N_rotors,1);
 
-pinv_A_jerk = pinv(A_jerk);
-ctrl_out = pinv_A_jerk*([jerk_des; w_ddot_des] - 0*[b_vec; zeros(3,1)]);% + (eye(8)- pinv_A_jerk*A_jerk)*z;
+W = diag([1e-2*ones(1,N_rotors),1e8*ones(1,N_rotors)]);
+inv_W = inv(W);
+pinv_A_jerk = inv_W* A_jerk'*inv(A_jerk*inv_W*A_jerk'); %pinv(A_jerk);
+ctrl_out = pinv_A_jerk*([jerk_des; w_ddot_des] - [b_vec; zeros(3,1)]); % + (eye(2*N_rotors)- pinv_A_jerk*A_jerk)*z;
 
 wr_dot = ctrl_out(1:N_rotors);
 w_tilt = ctrl_out(N_rotors+1:end);
 
-CTRL = Function('CTRL',{states,wr,K_lin,K_att,lin_ref,att_ref},{wr_dot, w_tilt,jerk_des,w_ddot_des,pinv_A_jerk}, ...
-                         {'x0', 'wr', 'K_lin', 'K_att', 'lin_ref', 'att_ref'}, {'wr_dot', 'w_tilt','jd','wd','a_inv'});
+CTRL = Function('CTRL',{states,wr0,K_lin,K_att,lin_ref,att_ref,params},{wr_dot, w_tilt}, ...
+                         {'x0', 'wr0', 'K_lin', 'K_att', 'lin_ref', 'att_ref', 'params'}, {'wr_dot', 'w_tilt'});
 
 %% C++ code generation
 gen_opts = struct('main', true, ...
