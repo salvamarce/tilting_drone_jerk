@@ -15,7 +15,7 @@ vel = states(4:6);
 acc = states(7:9);
 eul = states(10:12);
 wB = states(13:15);
-wB_dot = states(16:18);
+wB_acc = states(16:18);
 tilt = states(19:19+N_rotors-1);
 
 % Parameters
@@ -63,9 +63,11 @@ eul_dot = Tmat\wB;
 tilt_dot = K_tilt * w_tilt;
 
 pos_dot = vel;
-vel_wB_dot = [0;0;-gravity;zeros(3,1)] + Jr*[A, zeros(6,N_rotors)]*[wr;w_tilt];
+% vel_wB_dot = [0;0;-gravity;zeros(3,1)] + Jr*[A, zeros(6,N_rotors)]*[wr;w_tilt];
+vel_dot = acc;
+wB_dot = wB_acc;
 
-X_DOT = Function('X_DOT',{states,wr,wr_dot,w_tilt,params},{pos_dot,vel_wB_dot(1:3),out(1:3),eul_dot,vel_wB_dot(4:6),out(4:6),tilt_dot}, ...
+X_DOT = Function('X_DOT',{states,wr,wr_dot,w_tilt,params},{pos_dot,vel_dot,out(1:3),eul_dot,wB_dot,out(4:6),tilt_dot}, ...
                          {'x0', 'wr', 'wr_dot', 'w_tilt', 'params'}, {'pos_dot','vel_dot','acc_dot','eul_dot','wB_dot','wB_ddot','tilt_dot'});
 
 %% C++ code generation

@@ -13,7 +13,7 @@ plot_axis_length = false;
 plot_animation = false;
 
 parameters
-delta_Kf = params(2)*0.05;
+delta_Kf = params(2)*0.0;
 delta_K_tilt = 0.0; %K_tilt
 delta_p = [delta_Kf, delta_K_tilt];
 

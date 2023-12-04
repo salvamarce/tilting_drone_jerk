@@ -71,25 +71,25 @@ delta_p = [delta_Kf, delta_K_tilt];
 clearvars -except ref_traj x_nom PI_nom N dt Tf
 parameters
 
-delta_Kf = -Kf*0.1;
-delta_K_tilt = 0.0; %K_tilt
+delta_Kf = -Kf*0.0;
+delta_K_tilt = 0.01; %K_tilt
 delta_p = [delta_Kf, delta_K_tilt];
 
 [x_pert,~,~,~,~,~] = system_simulation(delta_p, ref_traj, N, dt);
 
-diff_x = (x_pert - x_nom)./(delta_Kf);
+diff_x = (x_pert - x_nom)./(delta_K_tilt);
 
 ylabels = ["x", "y", "z", "v_x", "v_y", "v_z","ax","ay","az",...
            "roll", "pitch","yaw", "w_roll", "w_pitch", "w_yaw", "dw_roll", "dw_pitch", "dw_yaw",...
            "a1", "a2", "a3", "a4","a5","a6"];
   
 for indx = 1:N_states
-    pi_nom = reshape(PI_nom(indx,1,:), [], 1)';
+    pi_nom = reshape(PI_nom(indx,2,:), [], 1)';
     diff = diff_x(indx,:);
     
     ff = figure('Units','centimeters','OuterPosition',[5, 5, 21, 12]);
     subplot(2,1,1)
-    % plot(pi_nom, 'DisplayName','Pi')
+    plot(pi_nom, 'DisplayName','Pi')
     hold on
     plot(diff, 'DisplayName', 'diff')
     hold off
@@ -98,7 +98,7 @@ for indx = 1:N_states
     grid on
     subplot(2,1,2)
     plot((diff-pi_nom)', 'DisplayName','error')
-    % plot(pi_nom.*delta_Kf, 'DisplayName','Pi')
+    % plot(pi_nom, 'DisplayName','Pi')
     legend show
     grid on
 end

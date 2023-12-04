@@ -55,8 +55,8 @@ function [state_evo, ctrl_evo, PI_evo, PI_csi_evo, wr_evo, tilt_evo, tilt_des_ev
         PI_csi_dt = cl_sens('PI_CSI_FUN',PI_evo(:,:,i-1),PI_csi_evo(:,:,i-1),x0, wr0, wr_dot_des, w_tilt_des,K_lin,K_att,ref_traj(1:12,i),ref_traj(13:end,i), params, drone_params);
        
         acc_next = x0(7:9) + acc_dot * dt;
-        vel_next = x0(4:6) + vel_dot * dt + 0.5 * acc_dot * dt^2; %x0(4:6) + acc_next * dt;
-        pos_next = x0(1:3) + pos_dot * dt + 0.5 * vel_dot * dt^2; %x0(1:3) + vel_next * dt;
+        vel_next = x0(4:6) + acc_next * dt;
+        pos_next = x0(1:3) + vel_next * dt;
         
         w_dot_next = x0(16:18) + wB_ddot * dt;
         w_next = x0(13:15) + wB_dot * dt;

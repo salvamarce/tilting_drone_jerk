@@ -17,7 +17,7 @@ K_tilt = 1.0;
 params = [mass; Kf; Km; I_diag; arm; rotor_angles';K_tilt];
 
 % Control gains
-K_lin_pos = 1800*[1.5; 1.5; 2.0];
+K_lin_pos = 1800*[1.5; 1.5; 1.0];
 K_lin_vel = 750*[1.0; 1.0; 1.0];
 K_lin_acc = 250*[1.0; 1.0; 1.0];
 K_lin = [K_lin_pos; K_lin_vel; K_lin_acc];
