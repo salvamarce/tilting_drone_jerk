@@ -1,155 +1,154 @@
-function [] = optimization_model(ref_traj, dt, lb_states, ub_states)
+function [var0, var, ub_var, lb_var, constr, ub_constr, lb_constr, cost] = optimization_model(ref_traj, dt, lb_states, ub_states, guess)
     
     addpath('casadi_matlab')
     import casadi.*
     
     addpath('cpp_files')
     addpath('util')
+    
+    ctrl_fun = controller_sym();
+    system_fun = drone_model_sym();
+
     drone_settings
+    parameters
 
     %% Initialization
     t=0;
     N_traj = size(ref_traj,2);
        
     wr0 = (mass*9.81/(N_rotors*Kf)).*ones(N_rotors,1);
-    wr_old = wr0;
     tilt0 = deg2rad(0)*[-1;0;1;-1;0;1].*ones(N_rotors,1);
-    tilt_des0 = zeros(N_rotors,1);
-    x0 = [ref_traj(1:9,1);deg2rad(0);deg2rad(0);ref_traj(15:21,1);tilt0(:,1)];
-    ctrl0 = zeros(2*N_rotors, 1);
-    PI0 = zeros(N_states,2,1);
-    PI_csi0 = zeros(N_rotors,2,1);
+    x0 = [ref_traj(1:9,1);ref_traj(13:21,1);tilt0(:,1)];
+    PI0 = zeros(N_states,2);
+    PI_csi0 = zeros(N_rotors,2);
     
     var = {};
     var0 = []; %variable's evolution vector
     lb_var = []; ub_var = []; %States bounds
-    g={}; % constraints
-    lbg = []; ubg = []; %constraints bounds
-    J = 0; % cost function
+    constr={}; % constraints
+    lb_constr = []; ub_constr = []; %constraints bounds
+    J_int = 0;
+    cost = 0; % cost function
 
     %% Initial conditions
-    cp_s = SX.sym('cp_s',N_cp,1);
-    var = {var{:}, cp_s};
-    lb_var = [lb_var; [0.0; -100*ones(N_cp-1,1)]];
-    ub_var = [ub_var; [0.0;  100*ones(N_cp-1,1)]];
-    var0 = [var0; zeros(N_cp,1)];
-    
-    t_traj = linspace(0,1,N_traj);
+    cp_s = SX.sym('cp_s',N_cp,2*N_rotors);
+    for i_cp=1:2*N_rotors
+        var = [var, {cp_s(:,i_cp)}];
+        lb_var = [lb_var; [0.0; -100*ones(N_cp-1,1)]];
+        ub_var = [ub_var; [0.0;  100*ones(N_cp-1,1)]];
+        var0 = [var0; zeros(N_cp,1)];
+    end
 
-    [z_opti,~,~] = time_law(cp_s, N_cp, dt, N_traj);
+    % z_opti = [];
+    z_opti = SX.sym('z_opti',2*N_rotors,N_traj);
+
+    for i_z = 1:2*N_rotors
+        [temp,~,~] = time_law(cp_s(:,i_z), N_cp, dt, N_traj);
+        % z_opti = [z_opti; temp];
+        z_opti(i_z,:) = temp;
+    end
 
     %Initial state
     Xk = SX.sym('X0', N_states);
-    var = {var{:}, Xk};
+    var = [var, {Xk}];
     lb_var = [lb_var; x0];
     ub_var = [ub_var; x0];
     var0 = [var0; x0];
+
+    tilt_des_old = zeros(N_rotors,1);
     
     %% Next states
-    for i=2:N_traj
-   
-        wr_old = wr_evo(:,i-1);
+    for i=2:N_traj 
 
-    R_des = Rz(r_des(12))*Ry(r_des(11))*Rx(r_des(10));
-    q_des = rotm2quat(R_des);
+        % Input 
+        wr_dot_des_k = SX.sym(['wr_dot_des_',num2str(i)], N_rotors);
+        var = [var, {wr_dot_des_k}];
+        lb_var = [lb_var; minPropSpeedsq * ones(N_rotors,1)];
+        ub_var = [ub_var; maxPropSpeedsq * ones(N_rotors,1)];
+        var0 = [var0; guess.wr_dot_evo(:,i)]; %input initial guess
 
-    r = [r_des(1:9);q_des];
+        w_tilt_des_k = SX.sym(['w_tilt_des_',num2str(i)], N_rotors);
+        var = [var, {w_tilt_des_k}]; 
+        lb_var = [lb_var; -deg2rad(alpha_minmax) * ones(N_rotors,1)];
+        ub_var = [ub_var;  deg2rad(alpha_minmax) * ones(N_rotors,1)];
+        var0 = [var0; guess.w_tilt_evo(:,i)]; %input initial guess
 
-    %%% Input 
-    n_des_k = SX.sym(['n_des_',num2str(i)], N_rotors);
-    w = {w{:}, n_des_k}; 
-    if(use_tubes)
-        lbw = [lbw; minPropSpeedsq + u_tube(:,i+1)]; 
-        ubw = [ubw; maxPropSpeedsq - u_tube(:,i+1)]; 
-    else
-        lbw = [lbw; minPropSpeedsq * ones(N_rotors,1)];
-        ubw = [ubw; maxPropSpeedsq * ones(N_rotors,1)];
+        [wr_dot_des, w_tilt_des] = ctrl_fun(Xk,wr0,K_lin,K_att,ref_traj(1:12,i),ref_traj(13:end,i), params, z_opti(:,i));
+
+        % State
+        Xk_next = SX.sym(['X_' num2str(i)], N_states);
+        var = [var, {Xk_next}];
+        lb_var = [lb_var; lb_states];
+        ub_var = [ub_var; ub_states];
+        var0 = [var0; guess.state_evo(:,i)]; %state initial guess
+
+        tilt_des_next = tilt_des_old + w_tilt_des * dt;
+
+        [pos_dot,vel_dot,acc_dot,eul_dot,wB_dot,wB_ddot,w_tilt] = system_fun(Xk,wr0,wr_dot_des,w_tilt_des,params,tilt_des_next);
+        
+        acc_next = x0(7:9) + acc_dot * dt;
+        vel_next = x0(4:6) + acc_next * dt;
+        pos_next = x0(1:3) + vel_next * dt;
+        w_dot_next = x0(16:18) + wB_ddot * dt;
+        w_next = x0(13:15) + wB_dot * dt;
+        eul_next = x0(10:12) + eul_dot * dt;
+        tilt_next = x0(19:end) + w_tilt * dt;
+        
+        x_next = [pos_next; vel_next; acc_next; eul_next; w_next; w_dot_next; tilt_next];
+
+        % csi_dot = cl_sens('CSI_FUN', wr_dot_des);
+        
+        %%%%%%%%%
+    
+        % if(use_tubes)
+        % 
+        %     PI_U_k = PI_U(Xk,csi0,PI0,PI_csi0,r,p0, cntrl_gains, n_des, alpha_des,f_ext(:,i+1));
+        %     K_pi_u = diag(PI_U_k(1:N_rotors,:)*delta_mat*PI_U_k(1:N_rotors,:)');
+        % 
+        %     Pk1 = PI_DOT(Xk,csi0,PI0,PI_csi0,r,p0, cntrl_gains, n_des, alpha_des,f_ext(:,i+1));
+        %     PI_dt = cl_sens('PI_FUN', PI_evo(:,:,i-1),PI_csi_evo(:,:,i-1),x0, wr0, wr_dot_des, w_tilt_des,K_lin,K_att,ref_traj(1:12,i),ref_traj(13:end,i), params, drone_params);
+        %     Pcsi_dt = PI_CSI_DOT(Xk,csi0,PI0,PI_csi0,r,p0, cntrl_gains, n_des, alpha_des,f_ext(:,i+1));
+        %     PI_csi_dt = cl_sens('PI_CSI_FUN',PI_evo(:,:,i-1),PI_csi_evo(:,:,i-1),x0, wr0, wr_dot_des, w_tilt_des,K_lin,K_att,ref_traj(1:12,i),ref_traj(13:end,i), params, drone_params);
+        % 
+        %     PI_next = PI0 + Pk1 * dt;
+        %     PI_csi_next = PI_csi0 + Pcsi_dt * dt;
+        % 
+        %     K_pi = diag(PI0*delta_mat*PI0');
+        % end
+
+        %%% Equality constraints   
+        % Input 
+        constr = [constr, {wr_dot_des_k - wr_dot_des}];
+        lb_constr = [lb_constr; zeros(N_rotors,1)];
+        ub_constr = [ub_constr; zeros(N_rotors,1)];
+    
+        constr = [constr, {w_tilt_des_k - w_tilt_des}];
+        lb_constr = [lb_constr; zeros(N_rotors,1)];
+        ub_constr = [ub_constr; zeros(N_rotors,1)];
+    
+        % State
+        constr = [constr, {Xk_next - x_next}];
+        lb_constr = [lb_constr; zeros(N_states,1)];
+        ub_constr = [ub_constr; zeros(N_states,1)];
+
+        %%%%%%%%%
+        
+        % Cost
+        J_int = J_int  + sum(w_tilt_des_k.^2);
+    
+        Xk = Xk_next;
+        wr0 = wr0 + wr_dot_des * dt;
+        tilt_des_old = tilt_des_next;
+        % csi0 = csi_next;
+    
+        % if(use_tubes)
+        %     PI0 = PI_next;
+        %     PI_csi0 = PI_csi_next;
+        % end
+    
     end
-    w0 = [w0; guess.rotor_vel_evo(:,i+1)]; %input initial guess
 
-    alpha_des_k = SX.sym(['alpha_des_',num2str(i)], N_rotors);
-    w = {w{:}, alpha_des_k}; 
-    if(use_tubes)
-        lbw = [lbw; -deg2rad(alpha_minmax) + alpha_tube(:,i+1)]; 
-        ubw = [ubw;  deg2rad(alpha_minmax) - alpha_tube(:,i+1)]; 
-    else
-        lbw = [lbw; -deg2rad(alpha_minmax) * ones(N_rotors,1)]; 
-        ubw = [ubw;  deg2rad(alpha_minmax) * ones(N_rotors,1)];
-    end
-    w0 = [w0; guess.alpha_evo(:,i+1)]; %input initial guess
-    
-    [n_des, alpha_des, f_ctrl] = CTRL(Xk,csi0,r,p0,cntrl_gains);
-    %%%%%%%%%
-
-    %%% State
-    Xk_next = SX.sym(['X_' num2str(i+1)], N_states);
-    w = [w, {Xk_next}];
-    lbw = [lbw; lb_states];
-    ubw = [ubw; ub_states];
-    w0 = [w0; guess.x_evo(:,i+1)]; %state initial guess
-    
-    [k1, F_M] = X_DOT(Xk,p0,n_des, alpha_des,f_ext(:,i+1));
-    x_next = Xk + k1 * (Tf_opt/N);
-
-    csi_dt = CSI_DOT(x0,r,cntrl_gains);
-    csi_next = csi0 + csi_dt * (Tf_opt/N);
-    %%%%%%%%%
-    
-    if(use_tubes)
-
-        PI_U_k = PI_U(Xk,csi0,PI0,PI_csi0,r,p0, cntrl_gains, n_des, alpha_des,f_ext(:,i+1));
-        K_pi_u = diag(PI_U_k(1:N_rotors,:)*delta_mat*PI_U_k(1:N_rotors,:)');
-    
-        Pk1 = PI_DOT(Xk,csi0,PI0,PI_csi0,r,p0, cntrl_gains, n_des, alpha_des,f_ext(:,i+1));
-        Pcsi_dt = PI_CSI_DOT(Xk,csi0,PI0,PI_csi0,r,p0, cntrl_gains, n_des, alpha_des,f_ext(:,i+1));
-    
-        PI_next = PI0 + Pk1 * dt;
-        PI_csi_next = PI_csi0 + Pcsi_dt * dt;
-    
-        K_pi = diag(PI0*delta_mat*PI0');
-    end
-
-    % Forces ellipsoid
-    ax_sq = AX_SQ(Xk,p0,n_des,alpha_des,f_ext(:,i+1));
-    ay_sq = AY_SQ(Xk,p0,n_des,alpha_des,f_ext(:,i+1));
-    
-    %%%%%%%%%
-
-    %%% Equality constraints   
-    % Input 
-    g = [g, {n_des_k - n_des}];
-    lbg = [lbg; zeros(N_rotors,1)];
-    ubg = [ubg; zeros(N_rotors,1)];
-
-    g = [g, {alpha_des_k - alpha_des}];
-    lbg = [lbg; zeros(N_rotors,1)];
-    ubg = [ubg; zeros(N_rotors,1)];
-
-    g = [g, { (alpha_des_k - alpha_des_k_old)/dt }];
-    lbg = [lbg; -alpha_dot_minmax .* ones(N_rotors,1)];
-    ubg = [ubg; alpha_dot_minmax .* ones(N_rotors,1)];
-
-    % State
-    g = [g, {Xk_next - x_next}];
-    lbg = [lbg; zeros(N_states,1)];
-    ubg = [ubg; zeros(N_states,1)];
-
-    %%%%%%%%%
-    
-    % Cost
-    J_int = J_int  + 1e-8*norm(n_des)^2 + 1e3*norm(alpha_des)^2;
-
-    Xk = Xk_next;
-    csi0 = csi_next;
-    alpha_des_k_old = alpha_des_k;
-
-    if(use_tubes)
-        PI0 = PI_next;
-        PI_csi0 = PI_csi_next;
-    end
-    
-
-end
+    cost = J_int;
 
 
 end

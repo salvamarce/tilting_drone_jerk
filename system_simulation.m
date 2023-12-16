@@ -1,5 +1,5 @@
 %% Simulation initial conditions
-function [state_evo, ctrl_evo, PI_evo, PI_csi_evo, wr_evo, tilt_evo, tilt_des_evo] = system_simulation(delta_p, ref_traj, N, dt, rotors_saturation)
+function [state_evo, ctrl_evo, PI_evo, PI_csi_evo, wr_evo, tilt_evo, tilt_des_evo] = system_simulation(delta_p, ref_traj, N, dt, z_null, rotors_saturation)
 
     if ~exist('rotors_saturation','var')
         rotors_saturation = false;
@@ -28,11 +28,11 @@ function [state_evo, ctrl_evo, PI_evo, PI_csi_evo, wr_evo, tilt_evo, tilt_des_ev
         
         wr0 = wr_evo(:,i-1);
         
-        [wr_dot_des, w_tilt_des] = controller('CTRL',x0,wr0,K_lin,K_att,ref_traj(1:12,i),ref_traj(13:end,i), params);
+        [wr_dot_des, w_tilt_des] = controller('CTRL',x0,wr0,K_lin,K_att,ref_traj(1:12,i),ref_traj(13:end,i), params, z_null);
         csi_dot = cl_sens('CSI_FUN', wr_dot_des);
         csi_next = wr0 + csi_dot * dt;
         tilt_des_next = tilt_des_evo(:,i-1) + w_tilt_des * dt;    
-        
+
         if(rotors_saturation)
             for rotor_i = 1:N_rotors
                        
@@ -42,7 +42,7 @@ function [state_evo, ctrl_evo, PI_evo, PI_csi_evo, wr_evo, tilt_evo, tilt_des_ev
             end
         end
         
-        [pos_dot,vel_dot,acc_dot,eul_dot,wB_dot,wB_ddot,w_tilt] = drone_model('X_DOT',x0,wr0,wr_dot_des,w_tilt_des,drone_params);
+        [pos_dot,vel_dot,acc_dot,eul_dot,wB_dot,wB_ddot,w_tilt] = drone_model('X_DOT',x0,csi_next,wr_dot_des,w_tilt_des,drone_params,tilt_des_next);
         
         tilt_next = tilt_evo(:,i-1) + w_tilt * dt;
         if(rotors_saturation)
@@ -51,12 +51,12 @@ function [state_evo, ctrl_evo, PI_evo, PI_csi_evo, wr_evo, tilt_evo, tilt_des_ev
             end
         end
 
-        PI_dt = cl_sens('PI_FUN', PI_evo(:,:,i-1),PI_csi_evo(:,:,i-1),x0, wr0, wr_dot_des, w_tilt_des,K_lin,K_att,ref_traj(1:12,i),ref_traj(13:end,i), params, drone_params);
-        PI_csi_dt = cl_sens('PI_CSI_FUN',PI_evo(:,:,i-1),PI_csi_evo(:,:,i-1),x0, wr0, wr_dot_des, w_tilt_des,K_lin,K_att,ref_traj(1:12,i),ref_traj(13:end,i), params, drone_params);
+        PI_dt = cl_sens('PI_FUN', PI_evo(:,:,i-1),PI_csi_evo(:,:,i-1),x0, csi_next, wr_dot_des, w_tilt_des,K_lin,K_att,ref_traj(1:12,i),ref_traj(13:end,i), params, drone_params,tilt_des_next,z_null);
+        PI_csi_dt = cl_sens('PI_CSI_FUN',PI_evo(:,:,i-1),PI_csi_evo(:,:,i-1),x0, csi_next, wr_dot_des, w_tilt_des,K_lin,K_att,ref_traj(1:12,i),ref_traj(13:end,i), params, drone_params,tilt_des_next,z_null);
        
         acc_next = x0(7:9) + acc_dot * dt;
-        vel_next = x0(4:6) + acc_next * dt;
-        pos_next = x0(1:3) + vel_next * dt;
+        vel_next = x0(4:6) + acc_next * dt; %vel_dot * dt;
+        pos_next = x0(1:3) + vel_next * dt; %pos_dot * dt;
         
         w_dot_next = x0(16:18) + wB_ddot * dt;
         w_next = x0(13:15) + wB_dot * dt;
@@ -72,7 +72,6 @@ function [state_evo, ctrl_evo, PI_evo, PI_csi_evo, wr_evo, tilt_evo, tilt_des_ev
         t = t + dt;
         x0 = state_evo(:,i);
 
-    
     end
 
 end

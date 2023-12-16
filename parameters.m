@@ -12,7 +12,7 @@ Kf = 1.498e-5;
 Km = 0.936e-5;
 arm = 0.4;
 rotor_angles = first_angle:angle_span:deg2rad(360)-first_angle;
-K_tilt = 1.0;
+K_tilt = 750.0;
 
 params = [mass; Kf; Km; I_diag; arm; rotor_angles';K_tilt];
 
@@ -30,6 +30,8 @@ K_att = [K_att_pos; K_att_vel; K_att_acc];
 %% Contraints
 maxPropSpeedsq = 650^2; %rad/s
 minPropSpeedsq = 200^2; %rad/s
+
+% minmaxPropAcc = 
 
 alpha_minmax = 45; %Degree
 % alpha_dot_minmax = 60 * 1.745329 * 1e-2; %rad/s

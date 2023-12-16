@@ -11,15 +11,15 @@ parameters
 
 %% Trajectory
 t0 = 0;
-Tf = 5.0; 
-Tf_sim = Tf +0.0;
+Tf = 2.0; 
+Tf_sim = Tf +2.0;
 dt = 0.001;
 N = Tf_sim/dt;
 N_diff = (Tf_sim-Tf)/dt;
 
 center = 0;
 arc = 1.57;
-rho = 2.0;
+rho = 1.0;
 
 cp_s = [0; 0; linspace(0,rho*arc,N_cp-4)'; rho*arc; rho*arc];
 t_traj = linspace(0,Tf_sim,N);
@@ -28,18 +28,18 @@ t_traj = linspace(0,Tf_sim,N);
 
 sp = sin(s./rho);
 cp = cos(s./rho);
-ref_traj = [rho*cp; 0.*rho*sp; 0.*rho*sp;
-         -1*s_dot.*sp; 0*s_dot.*cp; 0*s_dot.*cp;
-         1*(-(s_dot.^2) .* cp./rho- s_ddot.*sp); 0*(-(s_dot.^2) .* sp./rho + s_ddot .*cp); 0*(-(s_dot.^2) .* sp./rho + s_ddot .*cp);
+ref_traj = [rho*cp; 0*rho*sp; 1*rho*sp;
+         -1*s_dot.*sp; 0*s_dot.*cp; 1*s_dot.*cp;
+         1*(-(s_dot.^2) .* cp./rho- s_ddot.*sp); 0*(-(s_dot.^2) .* sp./rho + s_ddot .*cp); 1*(-(s_dot.^2) .* sp./rho + s_ddot .*cp);
          zeros(3,N-N_diff); %jerk ff
          zeros(12,N-N_diff)];
-
-% angle_des = deg2rad(15);
-% cp_s = [0; 0; linspace(0,angle_des,N_cp-4)'; angle_des; angle_des];
-% [s, s_dot, s_ddot] = time_law(cp_s, N_cp, dt, N-N_diff);
-% ref_traj(13,:) = s;         ref_traj(14,:) = -s;
-% ref_traj(16,:) = s_dot;     ref_traj(17,:) = -s_dot;
-% ref_traj(19,:) = s_ddot;    ref_traj(20,:) = -s_ddot;
+% 
+angle_des = deg2rad(10);
+cp_s = [0; 0; linspace(0,angle_des,N_cp-4)'; angle_des; angle_des];
+[s, s_dot, s_ddot] = time_law(cp_s, N_cp, dt, N-N_diff);
+ref_traj(13,:) = 0*s;         ref_traj(14,:) = -s;
+ref_traj(16,:) = 0*s_dot;     ref_traj(17,:) = -s_dot;
+ref_traj(19,:) = 0*s_ddot;    ref_traj(20,:) = -s_ddot;
 
 ref_traj = [ref_traj, ref_traj(:,end).*ones(24,N_diff)];
 
