@@ -75,14 +75,14 @@ f_ext = [linspace(0,f_x_ext,N/2), f_x_ext*ones(1,N/2); zeros(1,N); zeros(1,N)];
 % ref_traj(11,:) = temp;
 
 % Nominal case
-[state_evo_nom, ctrl_evo_nom, PI_evo, PI_csi_evo, wr_evo_nom, tilt_evo_nom, tilt_des_evo_nom] = system_simulation(delta_p, ref_traj, N, dt, zeros(2*N_rotors,1), saturation);
+[state_evo_nom, ctrl_evo_nom, wr_evo_nom, tilt_evo_nom, tilt_des_evo_nom] = new_system_simulation(delta_p, ref_traj, N, dt, zeros(2*N_rotors,1), true, f_ext);
 
 % Perturbated case
 delta_Kf = -params(2)*0.10;
 delta_K_tilt = 0.0*[1; 0.85; 0.8; 1.0];% 0.95; 0.8];
 delta_p = [delta_Kf; delta_K_tilt];
 
-[state_evo_pert, ctrl_evo_pert, PI_evo, PI_csi_evo, wr_evo_pert, tilt_evo_pert, tilt_des_evo_pert] = system_simulation(delta_p, ref_traj, N, dt, zeros(2*N_rotors,1), saturation);
+[state_evo_pert, ctrl_evo_pert, wr_evo_pert, tilt_evo_pert, tilt_des_evo_pert] = new_system_simulation(delta_p, ref_traj, N, dt, zeros(2*N_rotors,1), true, f_ext);
 
 
 if(plot_state)
