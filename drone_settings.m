@@ -1,12 +1,6 @@
 %% Declaration of system's parameters
 
-% Hexacopter
-% N_rotors = 6;
-% angle_span = deg2rad(60);
-% first_angle = deg2rad(30);
-
-% Quadcopter
-N_rotors = 6;
+N_rotors = 4;
 
 N_states = 18+N_rotors; % px,py,pz,
                         % vx,vx,vz,
@@ -19,5 +13,5 @@ N_states = 18+N_rotors; % px,py,pz,
 N_cp = 6;
 
 % Parameters
-N_params = 7+N_rotors+1; %mass,Kf,Km,Ixx,Iyy,Izz,arm,rotor_angles,K_tilt
+N_params = 7+N_rotors+N_rotors; %mass,Kf,Km,Ixx,Iyy,Izz,arm,rotor_angles,K_tilt
 

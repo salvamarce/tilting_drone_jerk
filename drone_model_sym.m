@@ -31,17 +31,21 @@ function [X_DOT] = drone_model_sym(generate_cpp)
     I_diag = params(4:6);
     arm = params(7);
     rotor_angles = params(8:8+N_rotors-1);
-    K_tilt = params(end);
+    K_tilt = params(end-N_rotors+1:end);
     
     %% System equations
     wr = SX.sym('wr',N_rotors,1);
     wr_dot = SX.sym('wr_dot',N_rotors,1);
     w_tilt= SX.sym('w_tilt',N_rotors,1);
     tilt_des= SX.sym('tilt_des',N_rotors,1);
+    dt = SX.sym('dt');
     gravity = 9.81;
     
     R_bw = Rx(eul(1))*Ry(eul(2))*Rz(eul(3));
     I_mat = diag(I_diag);
+
+    tilt_dot = (1-K_tilt) .* w_tilt;
+    tilt_new = tilt + w_tilt .* dt;
     
     Jr = [(1/mass) * R_bw, zeros(3,3); zeros(3,3), inv(I_mat)];
     A = compute_A_SX(rotor_angles,tilt, arm, Kf, Km);
@@ -63,19 +67,23 @@ function [X_DOT] = drone_model_sym(generate_cpp)
             0, cos(eul(1)), -sin(eul(1));
             0, -sin(eul(1)), cos(eul(2))*cos(eul(1))];
     
-    out = A_jerk * [wr_dot;w_tilt] + [b_vec; zeros(3,1)];
+    
+    
+    % tilt_dot = K_tilt * (tilt_des-tilt);
+
+    out = A_jerk * [wr_dot;tilt_dot] + [b_vec; zeros(3,1)];
     eul_dot = Tmat\wB;
     
-    % tilt_dot = K_tilt * w_tilt;
-    tilt_dot = K_tilt * (tilt_des-tilt);
+    
+    
     
     pos_dot = vel;
     % vel_wB_dot = [0;0;-gravity;zeros(3,1)] + Jr*[A, zeros(6,N_rotors)]*[wr;w_tilt];
     vel_dot = acc;
     wB_dot = wB_acc;
     
-    X_DOT = Function('X_DOT',{states,wr,wr_dot,w_tilt,params,tilt_des},{pos_dot,vel_dot,out(1:3),eul_dot,wB_dot,out(4:6),tilt_dot}, ...
-                             {'x0', 'wr', 'wr_dot', 'w_tilt', 'params','tilt_des'}, {'pos_dot','vel_dot','acc_dot','eul_dot','wB_dot','wB_ddot','tilt_dot'});
+    X_DOT = Function('X_DOT',{states,wr,wr_dot,w_tilt,params,tilt_des,dt},{pos_dot,vel_dot,out(1:3),eul_dot,wB_dot,out(4:6),tilt_dot}, ...
+                             {'x0', 'wr', 'wr_dot', 'w_tilt', 'params','tilt_des','dt'}, {'pos_dot','vel_dot','acc_dot','eul_dot','wB_dot','wB_ddot','tilt_dot'});
     
     %% C++ code generation
     if(generate_cpp)
