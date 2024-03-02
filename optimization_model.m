@@ -17,7 +17,14 @@ function [var0, var, ub_var, lb_var, constr, ub_constr, lb_constr, cost] = optim
     N_traj = size(ref_traj,2);
        
     wr0 = (mass*9.81/(N_rotors*Kf)).*ones(N_rotors,1);
-    tilt0 = deg2rad(0)*[-1;0;1;-1;0;1].*ones(N_rotors,1);
+    if(N_rotors == 6)
+        signs = [-1;0;1;-1;0;1];
+    else 
+        if(N_rotors == 4)
+            signs = [-1;1;-1;1]; 
+        end
+    end
+    tilt0 = deg2rad(0)*signs.*ones(N_rotors,1);
     x0 = [ref_traj(1:9,1);ref_traj(13:21,1);tilt0(:,1)];
     PI0 = zeros(N_states,2);
     PI_csi0 = zeros(N_rotors,2);
