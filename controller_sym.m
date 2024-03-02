@@ -31,7 +31,7 @@ function [CTRL] = controller_sym(generate_cpp)
     I_diag = params(4:6);
     arm = params(7);
     rotor_angles = params(8:8+N_rotors-1);
-    K_tilt = params(end);
+    K_tilt = params(end-N_rotors+1:end);
     
     %% Nominal allocation
     wr0 = SX.sym('wr0',N_rotors,1);

@@ -33,7 +33,7 @@ function [PI_fun, PI_csi_fun, csi_fun] = closed_loop_sens(generate_cpp)
     K_att = SX.sym('K_att',9,1);
     z_null = SX.sym('z_null',2*N_rotors,1);
     
-    [pos_dot,vel_dot,jerk,eul_dot,wB_dot,wB_ddot,w_tilt] = X_DOT(states,csi,wr_dot_des,w_tilt_des,drone_params,tilt_des);
+    [pos_dot,vel_dot,jerk,eul_dot,wB_dot,wB_ddot,w_tilt] = X_DOT(states,csi,wr_dot_des,w_tilt_des,drone_params,tilt_des,dt);
     [wr_dot_ctrl, w_tilt_ctrl] = CTRL(states,csi,K_lin,K_att,lin_ref,att_ref,params,z_null);  
     
     system_out = [pos_dot; vel_dot; jerk; eul_dot; wB_dot; wB_ddot; w_tilt];

@@ -1,7 +1,7 @@
 drone_settings
 
-angle_span = deg2rad(60);
-first_angle = deg2rad(30);
+angle_span = deg2rad(360/N_rotors);
+first_angle = angle_span/2;
 
 mass = 3.0;
 Ix = 2.10e-2;
@@ -12,7 +12,7 @@ Kf = 1.498e-5;
 Km = 0.936e-5;
 arm = 0.4;
 rotor_angles = first_angle:angle_span:deg2rad(360)-first_angle;
-K_tilt = 750.0;
+K_tilt = zeros(N_rotors,1);
 
 params = [mass; Kf; Km; I_diag; arm; rotor_angles';K_tilt];
 
@@ -28,10 +28,14 @@ K_att_acc = 50*[1.0; 1.0; 1.0];
 K_att = [K_att_pos; K_att_vel; K_att_acc];
 
 %% Contraints
-maxPropSpeedsq = 650^2; %rad/s
+if(N_rotors == 6)
+    maxPropSpeedsq = 625^2; %rad/s
+else
+    if(N_rotors == 4)
+        maxPropSpeedsq = 950^2; %rad/s
+    end
+end
 minPropSpeedsq = 200^2; %rad/s
-
-% minmaxPropAcc = 
 
 alpha_minmax = 45; %Degree
 % alpha_dot_minmax = 60 * 1.745329 * 1e-2; %rad/s

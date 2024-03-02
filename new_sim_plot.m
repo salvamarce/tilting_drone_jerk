@@ -1,5 +1,5 @@
 clearvars
-close all
+% close all
 clc
 
 addpath('casadi_matlab')
@@ -9,12 +9,10 @@ addpath('cpp_files')
 addpath('util')
 
 plot_state = true;
-plot_axis_length = false;
-plot_animation = false;
 
 parameters
 delta_Kf = -params(2)*0.0;
-delta_K_tilt = -K_tilt * 0.0;
+delta_K_tilt = 0.0;
 delta_p = [delta_Kf, delta_K_tilt];
 
 drone_params = params;
@@ -23,15 +21,15 @@ drone_params(end) = drone_params(end) + delta_K_tilt;
 
 %% Trajectory
 t0 = 0;
-Tf = 5.0; 
-Tf_sim = Tf +2.0;
+Tf = 6.0; 
+Tf_sim = Tf +5.0;
 dt = 0.001;
 N = Tf_sim/dt;
 N_diff = (Tf_sim-Tf)/dt;
 
 center = 0;
 arc = 1.57;
-rho = 0.005;
+rho = 4.0;
 
 cp_s = [0; 0; linspace(0,rho*arc,N_cp-4)'; rho*arc; rho*arc];
 t_traj = linspace(0,Tf_sim,N);
@@ -40,9 +38,9 @@ t_traj = linspace(0,Tf_sim,N);
 
 sp = sin(s./rho);
 cp = cos(s./rho);
-ref_traj = [rho*cp; 0*rho*sp; 1*rho*sp;
-         -1*s_dot.*sp; 0*s_dot.*cp; 1*s_dot.*cp;
-         1*(-(s_dot.^2) .* cp./rho- s_ddot.*sp); 0*(-(s_dot.^2) .* sp./rho + s_ddot .*cp); 1*(-(s_dot.^2) .* sp./rho + s_ddot .*cp);
+ref_traj = [rho*cp; 0*rho*sp; 0*rho*sp;
+         -1*s_dot.*sp; 0*s_dot.*cp; 0*s_dot.*cp;
+         1*(-(s_dot.^2) .* cp./rho- s_ddot.*sp); 0*(-(s_dot.^2) .* sp./rho + s_ddot .*cp); 0*(-(s_dot.^2) .* sp./rho + s_ddot .*cp);
          zeros(3,N-N_diff); %jerk ff
          zeros(12,N-N_diff)];
 % 
@@ -55,69 +53,34 @@ ref_traj = [rho*cp; 0*rho*sp; 1*rho*sp;
 
 ref_traj = [ref_traj, ref_traj(:,end).*ones(24,N_diff)];
 
-% temp = ref_traj(1,:);
-% ref_traj(1,:) = ref_traj(2,:);
-% ref_traj(2,:) = temp;
-% 
-% temp = ref_traj(4,:);
-% ref_traj(4,:) = ref_traj(5,:);
-% ref_traj(5,:) = temp;
-% 
-% temp = ref_traj(7,:);
-% ref_traj(7,:) = ref_traj(8,:);
-% ref_traj(8,:) = temp;
-% 
-% temp = ref_traj(10,:);
-% ref_traj(10,:) = ref_traj(11,:);
-% ref_traj(11,:) = temp;
+f_x_ext = -2.0;
+f_ext = [linspace(0,f_x_ext,N/2), f_x_ext*ones(1,N/2); zeros(1,N); zeros(1,N)];
 
-[state_evo, ctrl_evo, PI_evo, PI_csi_evo, wr_evo, tilt_evo, tilt_des_evo] = system_simulation(delta_p, ref_traj, N, dt, zeros(2*N_rotors,1), true);
-
-if(plot_axis_length)
-    
-    xlength = zeros(N,1);
-    ylength = zeros(N,1);
-    zlength = zeros(N,1);
-
-    for i_f = 1:N
-        Kj = full( jerk_allocation('jerk_ellips',state_evo(10:12,i_f), wr_evo(:,i_f), tilt_evo(:,i_f),drone_params) );
-        Kj_inv = inv(Kj);
-        xlength(i_f) = 1/sqrt(Kj_inv(1,1));
-        ylength(i_f) = 1/sqrt(Kj_inv(2,2));
-        zlength(i_f) = 1/sqrt(Kj_inv(3,3));
-    end
-
-    figure()
-    subplot(3,1,1)
-    plot(t_traj,xlength)
-    subplot(3,1,2)
-    plot(t_traj,ylength)
-    subplot(3,1,3)
-    plot(t_traj,zlength)
-
-end
-
-if (plot_animation)
-
-    figure()
-    plot3(state_evo(1,:),state_evo(2,:),state_evo(3,:))
-    hold on
-    Kj = full( jerk_allocation('jerk_ellips',state_evo(10:12,1), wr_evo(:,1), tilt_evo(:,1),drone_params) );
-    H1 = plot_ellipse(Kj, 'edgecolor', 'b');
-   
-    for i=1:N
-        Kj = full( jerk_allocation('jerk_ellips',state_evo(10:12,i), wr_evo(:,i), tilt_evo(:,i),drone_params) );
-        plot_ellipse(1e-4*Kj,state_evo(1:3,i), 'alter', H1);
-        drawnow
-    end
-end
+[state_evo, ctrl_evo, wr_evo, tilt_evo, tilt_des_evo] = new_system_simulation(delta_p, ref_traj, N, dt, zeros(2*N_rotors,1), true, f_ext);
 
 if(plot_state)
     t= 0:dt:Tf_sim-dt;
 
     figure() %'WindowState','maximized'
-    %Pos
+    %vel
     subplot(3,2,1)
+    plot(t,state_evo(1,:), 'DisplayName','x', 'LineWidth',1.5, 'Color', 'red')
+    hold on
+    plot(t,state_evo(2,:), 'DisplayName','y', 'LineWidth',1.5, 'Color', 'green')
+    hold on
+    plot(t,state_evo(3,:), 'DisplayName','z', 'LineWidth',1.5, 'Color', 'blue')
+    hold on
+    plot(t,ref_traj(1,:),'LineStyle','--','DisplayName','x_{ref}', 'Color', 'red')
+    hold on
+    plot(t,ref_traj(2,:),'LineStyle','--','DisplayName','y_{ref}', 'Color', 'green')
+    hold on
+    plot(t,ref_traj(3,:),'LineStyle','--','DisplayName','z_{ref}', 'Color', 'blue')
+    hold off
+    legend show
+    grid on
+    xlabel('[s]')
+    ylabel('position [m]')
+    subplot(3,2,3)
     plot(t,state_evo(4,:), 'DisplayName','v_x', 'LineWidth',1.5, 'Color', 'red')
     hold on
     plot(t,state_evo(5,:), 'DisplayName','v_y', 'LineWidth',1.5, 'Color', 'green')
@@ -133,39 +96,20 @@ if(plot_state)
     legend show
     grid on
     xlabel('[s]')
-    ylabel('velocity [m]')
+    ylabel('velocity [m/s]')
     axis([0 Tf_sim min(min(ref_traj(4:6,:)))-0.5 max(max(ref_traj(4:6,:)))+0.5])
-    %Vel
-    subplot(3,2,3)
-    plot(t,state_evo(7,:), 'DisplayName','a_x', 'LineWidth',1.5, 'Color', 'red')
-    hold on
-    plot(t,state_evo(8,:), 'DisplayName','a_y', 'LineWidth',1.5, 'Color', 'green')
-    hold on
-    plot(t,state_evo(9,:), 'DisplayName','a_z', 'LineWidth',1.5, 'Color', 'blue')
-    hold on
-    plot(t,ref_traj(7,:),'LineStyle','--','DisplayName','a_{x_{ref}}', 'Color', 'red')
-    hold on
-    plot(t,ref_traj(8,:),'LineStyle','--','DisplayName','a_{y_{ref}}', 'Color', 'green')
-    hold on
-    plot(t,ref_traj(9,:),'LineStyle','--','DisplayName','a_{z_{ref}}', 'Color', 'blue')
-    hold off
-    legend show
-    grid on
-    xlabel('[s]')
-    ylabel('linear acceleration [m/s^2]')
-    axis([0 Tf_sim min(min(ref_traj(7:9,:)))-0.5 max(max(ref_traj(7:9,:)))+0.5])
     %Err
     subplot(3,2,5)
-    plot(t,ref_traj(7,:)-state_evo(7,:), 'DisplayName','a_x', 'LineWidth',1.5, 'Color', 'red')
+    plot(t,ref_traj(1,:)-state_evo(1,:), 'DisplayName','x', 'LineWidth',1.5, 'Color', 'red')
     hold on
-    plot(t,ref_traj(8,:)-state_evo(8,:), 'DisplayName','a_y', 'LineWidth',1.5, 'Color', 'green')
+    plot(t,ref_traj(2,:)-state_evo(2,:), 'DisplayName','y', 'LineWidth',1.5, 'Color', 'green')
     hold on
-    plot(t,ref_traj(9,:)-state_evo(9,:), 'DisplayName','a_z', 'LineWidth',1.5, 'Color', 'blue')
+    plot(t,ref_traj(3,:)-state_evo(3,:), 'DisplayName','z', 'LineWidth',1.5, 'Color', 'blue')
     hold off
     legend show
     grid on
     xlabel('[s]')
-    ylabel('error [m/s^2]')
+    ylabel('error [m]')
     %Att
     subplot(3,2,2)
     plot(t,rad2deg(state_evo(10,:)), 'DisplayName','\phi', 'LineWidth',1.5, 'Color', 'red')
@@ -216,7 +160,7 @@ if(plot_state)
     grid on
     xlabel('[s]')
     ylabel('error [deg]')
-
+   
     figure()
     for i=1:N_rotors
         plot(linspace(0,Tf_sim,N),rad2deg(tilt_evo(i,:)), 'DisplayName',['\alpha_{', num2str(i), '}'], 'LineWidth', 1.5)
@@ -276,5 +220,19 @@ if(plot_state)
     axis([0 Tf_sim -4 4])
     legend show
     grid on
+
+    figure()
+    plot(t,state_evo(7,:), 'DisplayName','a_x', 'LineWidth',1.5, 'Color', 'red')
+    hold on
+    plot(t,state_evo(8,:), 'DisplayName','a_y', 'LineWidth',1.5, 'Color', 'green')
+    hold on
+    plot(t,state_evo(9,:), 'DisplayName','a_z', 'LineWidth',1.5, 'Color', 'blue')
+    hold on
+    plot(t,ref_traj(7,:),'LineStyle','--','DisplayName','a_{x_{ref}}', 'Color', 'red')
+    hold on
+    plot(t,ref_traj(8,:),'LineStyle','--','DisplayName','a_{y_{ref}}', 'Color', 'green')
+    hold on
+    plot(t,ref_traj(9,:),'LineStyle','--','DisplayName','a_{z_{ref}}', 'Color', 'blue')
+    hold off
 
 end

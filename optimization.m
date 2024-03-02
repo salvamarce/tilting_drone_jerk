@@ -17,7 +17,7 @@ drone_params = params;
 
 %% Trajectory
 t0 = 0;
-Tf = 2.0; 
+Tf = 0.5; 
 Tf_sim = Tf;
 dt = 0.001;
 N = Tf_sim/dt;
@@ -58,8 +58,8 @@ guess.w_tilt_evo = ctrl_nom(7:end,:);
 lb_states = [-2.0*ones(3,1); -5.0*ones(3,1); -10.0*ones(3,1); -1.57*ones(3,1); -2.0*ones(3,1); -4.0*ones(3,1); -deg2rad(alpha_minmax)*ones(N_rotors,1)];
 ub_states = [ 2.0*ones(3,1);  5.0*ones(3,1);  10.0*ones(3,1);  1.57*ones(3,1);  2.0*ones(3,1);  4.0*ones(3,1);  deg2rad(alpha_minmax)*ones(N_rotors,1)];
 
-% [var0, var, ub_var, lb_var, constr, ub_constr, lb_constr, cost] = optimization_model(ref_traj, dt, lb_states, ub_states, guess);
-[var0, var, ub_var, lb_var, constr, ub_constr, lb_constr, cost] = single_shooting(ref_traj, dt, lb_states, ub_states);
+[var0, var, ub_var, lb_var, constr, ub_constr, lb_constr, cost] = optimization_model(ref_traj, dt, lb_states, ub_states, guess);
+% [var0, var, ub_var, lb_var, constr, ub_constr, lb_constr, cost] = single_shooting(ref_traj, dt, lb_states, ub_states);
 
 prob = struct('f', cost,...
               'x', vertcat(var{:}),...
@@ -67,14 +67,14 @@ prob = struct('f', cost,...
 
 
 % opts.ipopt.print_level = false;
-% opts.verbose = true;
+opts.verbose = true;
 % opts.print_time = false;
 % opts.expand = true;
 opts.ipopt.hessian_approximation = 'limited-memory';
 % opts.ipopt.max_iter = 7000;
 % opts.ipopt.tol = 1e-3;
 % opts.ipopt.acceptable_tol = 1e-2;
-% opts.ipopt.linear_solver = 'ma97';
+opts.ipopt.linear_solver = 'ma97';
 % opts.jit = true;
 % opts.compiler = 'shell';
 % opts.jit_options.flags = {'-O3 -march=native'};
